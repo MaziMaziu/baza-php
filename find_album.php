@@ -1,35 +1,71 @@
 <?php
-require 'db_config.php';  
+require 'db_config.php'; // Załaduj konfigurację połączenia
 
+// Pobierz gatunek z formularza lub z query string
+$gatunek = isset($_POST['gatunek']) ? $_POST['gatunek'] : (isset($_GET['gatunek']) ? $_GET['gatunek'] : null);
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (isset($_POST['zespol'])) {
-        $zespol = $_POST['zespol'];
+if ($gatunek) {
+    $albumsPerPage = 5;  // Liczba albumów na stronie
 
-        try {
-            
-            $query = new MongoDB\Driver\Query(['zespol' => $zespol]);
-            $cursor = $manager->executeQuery('Muzyka.Płyty', $query);
+    // Pobierz numer strony z query string, jeśli nie ma, ustaw na 1
+    $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+    $skip = ($page - 1) * $albumsPerPage;  // Ilość albumów do pominięcia
 
-            
-            echo "<h2>Albumy zespołu: $zespol</h2>";
+    try {
+        // Tworzenie zapytania do bazy
+        $query = new MongoDB\Driver\Query(
+            ['gatunek' => $gatunek],
+            [
+                'skip' => $skip,  // Pomijanie wyników dla poprzednich stron
+                'limit' => $albumsPerPage  // Maksymalna liczba albumów na stronie
+            ]
+        );
+
+        // Wykonanie zapytania do kolekcji 'Płyty' w bazie 'Muzyka'
+        $cursor = $manager->executeQuery('Muzyka.Płyty', $query);
+
+        // Sprawdzanie, czy znaleziono jakiekolwiek albumy
+        $albums = iterator_to_array($cursor);
+
+        if (count($albums) > 0) {
+            echo "<h1>Albumy gatunku: " . htmlspecialchars($gatunek) . "</h1>";
             echo "<ul>";
-            foreach ($cursor as $document) {
-                echo "<li><strong>{$document->nazwa}</strong> (Rok: {$document->rok_wydania}, Gatunek: {$document->gatunek})</li>";
+            foreach ($albums as $album) {
+                echo "<li>";
+                echo "<strong>" . htmlspecialchars($album->nazwa) . "</strong><br>";
+                echo "Zespół: " . htmlspecialchars($album->zespol) . "<br>";
+                echo "Rok wydania: " . htmlspecialchars($album->rok_wydania) . "<br>";
+                echo "Gatunek: " . htmlspecialchars($album->gatunek) . "<br><br>";
+                echo "</li>";
             }
             echo "</ul>";
-        } catch (Throwable $e) {
-            echo "Błąd podczas zapytania: " . $e->getMessage();
+
+            // Zliczanie wszystkich albumów tego gatunku
+            $countQuery = new MongoDB\Driver\Query(['gatunek' => $gatunek]);
+            $countCursor = $manager->executeQuery('Muzyka.Płyty', $countQuery);
+            $totalAlbums = iterator_count($countCursor);  // Zliczanie wszystkich pasujących albumów
+            $totalPages = ceil($totalAlbums / $albumsPerPage);  // Obliczanie liczby stron
+
+            // Wyświetlanie przycisków stronnicowania
+            if ($totalPages > 1) {
+                echo "<div class='pagination'>";
+                if ($page > 1) {
+                    echo "<a href='?page=" . ($page - 1) . "&gatunek=" . urlencode($gatunek) . "'>Poprzednia</a> ";
+                }
+                if ($page < $totalPages) {
+                    echo "<a href='?page=" . ($page + 1) . "&gatunek=" . urlencode($gatunek) . "'>Następna</a>";
+                }
+                echo "</div>";
+            }
+
+        } else {
+            echo "<p>Brak albumów w wybranym gatunku.</p>";
         }
-    } else {
-        echo "Proszę wprowadzić nazwę zespołu!";
+
+    } catch (Throwable $e) {
+        echo "Wystąpił problem z połączeniem: " . $e->getMessage();
     }
+} else {
+    echo "<p>Proszę wybrać gatunek z formularza.</p>";
 }
 ?>
-
-
-<form action="find_album.php" method="POST">
-    <label for="zespol">Nazwa zespołu:</label>
-    <input type="text" name="zespol" id="zespol" required>
-    <input type="submit" value="Znajdź albumy">
-</form>

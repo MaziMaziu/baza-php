@@ -106,6 +106,17 @@
 
 
 
+<h1>Wybierz Gatunek</h1>
+    <form method="POST" action="">
+        <label for="gatunek">Wybierz gatunek:</label>
+        <select name="gatunek" id="gatunek">
+            <option value="rock" <?php echo (isset($_POST['gatunek']) && $_POST['gatunek'] == 'rock') ? 'selected' : ''; ?>>Rock</option>
+            <option value="pop" <?php echo (isset($_POST['gatunek']) && $_POST['gatunek'] == 'pop') ? 'selected' : ''; ?>>Pop</option>
+            <option value="jazz" <?php echo (isset($_POST['gatunek']) && $_POST['gatunek'] == 'jazz') ? 'selected' : ''; ?>>Jazz</option>
+            <!-- Dodaj inne gatunki według potrzeby -->
+        </select>
+        <input type="submit" value="Zastosuj">
+    </form>
 
 </body>
 </html>
